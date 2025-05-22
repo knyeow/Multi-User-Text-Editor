@@ -1,0 +1,8 @@
+client\EditorGUI.class
+server\ClientHandler$TextUpdate.class
+server\ClientHandler.class
+common\Document.class
+common\Message.class
+server\ClientHandler$1.class
+server\Server.class
+common\Message$Type.class
