@@ -1,7 +1,12 @@
-client\EditorGUI.class
+client\EditorGUI$3.class
 server\ClientHandler$TextUpdate.class
-server\ClientHandler.class
 common\Document.class
+client\Client.class
+client\EditorGUI$TextUpdate.class
+client\EditorGUI$1.class
+client\EditorGUI.class
+server\ClientHandler.class
+client\EditorGUI$2.class
 common\Message.class
 server\ClientHandler$1.class
 server\Server.class

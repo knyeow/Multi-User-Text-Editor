@@ -16,6 +16,7 @@ public class Message implements Serializable {
         DOCUMENT_CONTENT,
         TEXT_UPDATE,
         TEXT_UPDATE_BROADCAST,
+        USER_LIST,
         ERROR
     }
 

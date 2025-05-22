@@ -53,6 +53,7 @@ public class Server {
     public void addClient(String username, ClientHandler client) {
         clients.put(username, client);
         broadcastUserList();
+        broadcastDocumentList();
     }
 
     public void removeClient(String username) {
@@ -63,6 +64,7 @@ public class Server {
     public Document createDocument(String name) {
         Document doc = new Document(name);
         documents.put(doc.getId(), doc);
+        broadcastDocumentList();
         return doc;
     }
 
@@ -84,9 +86,16 @@ public class Server {
 
     private void broadcastUserList() {
         List<String> usernames = new ArrayList<>(clients.keySet());
-        Message userListMessage = new Message(Message.Type.DOCUMENT_LIST, 
+        Message userListMessage = new Message(Message.Type.USER_LIST, 
             String.join(",", usernames));
         broadcastMessage(userListMessage, null);
+    }
+
+    private void broadcastDocumentList() {
+        List<Document> docs = getAllDocuments();
+        String json = new com.google.gson.Gson().toJson(docs);
+        Message docListMessage = new Message(Message.Type.DOCUMENT_LIST, json);
+        broadcastMessage(docListMessage, null);
     }
 
     public static void main(String[] args) {
