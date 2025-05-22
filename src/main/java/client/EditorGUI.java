@@ -20,6 +20,7 @@ public class EditorGUI extends JFrame {
     private boolean m_IsApplyingRemoteUpdate = false;
     private javax.swing.Timer m_AutoSaveTimer;
     private static final int AUTO_SAVE_INTERVAL = 5000; // 5 seconds
+    private boolean m_IsFirstLoad = true;
 
     public EditorGUI(Client client) {
         this.client = client;
@@ -126,7 +127,18 @@ public class EditorGUI extends JFrame {
 
     private void sendTextUpdate(int position, int length, String text, boolean isInsert) {
         if (currentDocumentId != null && !m_IsApplyingRemoteUpdate) {
-            TextUpdate update = new TextUpdate(currentDocumentId, position, text, isInsert);
+            // For removal, we need to get the actual text being removed
+            String updateText = text;
+            if (!isInsert && length > 0) {
+                try {
+                    updateText = editorArea.getText(position, length);
+                } catch (javax.swing.text.BadLocationException e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+            
+            TextUpdate update = new TextUpdate(currentDocumentId, position, updateText, isInsert);
             String json = gson.toJson(update);
             client.sendMessage(new Message(Message.Type.TEXT_UPDATE, json));
         }
@@ -167,6 +179,7 @@ public class EditorGUI extends JFrame {
         SwingUtilities.invokeLater(() -> {
             m_IsApplyingRemoteUpdate = true;
             editorArea.setText(content);
+            m_IsFirstLoad = false;
             m_IsApplyingRemoteUpdate = false;
         });
     }
@@ -177,6 +190,11 @@ public class EditorGUI extends JFrame {
             SwingUtilities.invokeLater(() -> {
                 try {
                     m_IsApplyingRemoteUpdate = true;
+                    // Skip the first update if it's an insert and we just loaded the document
+                    if (m_IsFirstLoad && update.isInsert()) {
+                        return;
+                    }
+                    
                     // If position is 0 and it's an insert, treat it as a full content update
                     if (update.getPosition() == 0 && update.isInsert()) {
                         editorArea.setText(update.getText());
@@ -188,8 +206,11 @@ public class EditorGUI extends JFrame {
                         if (update.isInsert()) {
                             editorArea.insert(update.getText(), position);
                         } else {
+                            // For removal, ensure we don't try to remove more than what's available
                             int endPos = Math.min(position + update.getText().length(), docLength);
-                            editorArea.replaceRange("", position, endPos);
+                            if (endPos > position) {
+                                editorArea.replaceRange("", position, endPos);
+                            }
                         }
                     }
                     m_IsApplyingRemoteUpdate = false;
