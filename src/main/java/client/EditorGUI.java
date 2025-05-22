@@ -16,11 +16,16 @@ public class EditorGUI extends JFrame {
     private JTextField newDocumentField;
     private String currentDocumentId;
     private Gson gson;
+    private java.util.Map<String, String> m_DocNameToId = new java.util.HashMap<>();
+    private boolean m_IsApplyingRemoteUpdate = false;
+    private javax.swing.Timer m_AutoSaveTimer;
+    private static final int AUTO_SAVE_INTERVAL = 5000; // 5 seconds
 
     public EditorGUI(Client client) {
         this.client = client;
         this.gson = new Gson();
         setupGUI();
+        setupAutoSave();
     }
 
     private void setupGUI() {
@@ -62,14 +67,18 @@ public class EditorGUI extends JFrame {
         editorArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { }
             public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                sendTextUpdate(e.getOffset(), e.getLength(), "", false);
+                if (!m_IsApplyingRemoteUpdate) {
+                    sendTextUpdate(e.getOffset(), e.getLength(), "", false);
+                }
             }
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                try {
-                    String newText = editorArea.getText(e.getOffset(), e.getLength());
-                    sendTextUpdate(e.getOffset(), e.getLength(), newText, true);
-                } catch (javax.swing.text.BadLocationException ex) {
-                    ex.printStackTrace();
+                if (!m_IsApplyingRemoteUpdate) {
+                    try {
+                        String newText = editorArea.getText(e.getOffset(), e.getLength());
+                        sendTextUpdate(e.getOffset(), e.getLength(), newText, true);
+                    } catch (javax.swing.text.BadLocationException ex) {
+                        ex.printStackTrace();
+                    }
                 }
             }
         });
@@ -88,6 +97,17 @@ public class EditorGUI extends JFrame {
         client.sendMessage(new Message(Message.Type.LIST_DOCUMENTS, ""));
     }
 
+    private void setupAutoSave() {
+        m_AutoSaveTimer = new javax.swing.Timer(AUTO_SAVE_INTERVAL, e -> {
+            if (currentDocumentId != null && !m_IsApplyingRemoteUpdate) {
+                String content = editorArea.getText();
+                client.sendMessage(new Message(Message.Type.TEXT_UPDATE, 
+                    gson.toJson(new TextUpdate(currentDocumentId, 0, content, true))));
+            }
+        });
+        m_AutoSaveTimer.start();
+    }
+
     private void createNewDocument() {
         String docName = newDocumentField.getText().trim();
         if (!docName.isEmpty()) {
@@ -96,13 +116,16 @@ public class EditorGUI extends JFrame {
         }
     }
 
-    private void openDocument(String documentId) {
-        currentDocumentId = documentId;
-        client.sendMessage(new Message(Message.Type.OPEN_DOCUMENT, documentId));
+    private void openDocument(String documentName) {
+        String documentId = m_DocNameToId.get(documentName);
+        if (documentId != null) {
+            currentDocumentId = documentId;
+            client.sendMessage(new Message(Message.Type.OPEN_DOCUMENT, documentId));
+        }
     }
 
     private void sendTextUpdate(int position, int length, String text, boolean isInsert) {
-        if (currentDocumentId != null) {
+        if (currentDocumentId != null && !m_IsApplyingRemoteUpdate) {
             TextUpdate update = new TextUpdate(currentDocumentId, position, text, isInsert);
             String json = gson.toJson(update);
             client.sendMessage(new Message(Message.Type.TEXT_UPDATE, json));
@@ -129,18 +152,22 @@ public class EditorGUI extends JFrame {
     }
 
     private void updateDocumentList(String json) {
-        List<common.Document> documents = gson.fromJson(json, new TypeToken<List<common.Document>>(){}.getType());
+        java.util.List<common.Document> documents = gson.fromJson(json, new com.google.gson.reflect.TypeToken<java.util.List<common.Document>>(){}.getType());
         SwingUtilities.invokeLater(() -> {
             documentListModel.clear();
+            m_DocNameToId.clear();
             for (common.Document doc : documents) {
                 documentListModel.addElement(doc.getName());
+                m_DocNameToId.put(doc.getName(), doc.getId());
             }
         });
     }
 
     private void updateEditorContent(String content) {
         SwingUtilities.invokeLater(() -> {
+            m_IsApplyingRemoteUpdate = true;
             editorArea.setText(content);
+            m_IsApplyingRemoteUpdate = false;
         });
     }
 
@@ -149,14 +176,27 @@ public class EditorGUI extends JFrame {
         if (update.getDocumentId().equals(currentDocumentId)) {
             SwingUtilities.invokeLater(() -> {
                 try {
-                    if (update.isInsert()) {
-                        editorArea.insert(update.getText(), update.getPosition());
+                    m_IsApplyingRemoteUpdate = true;
+                    // If position is 0 and it's an insert, treat it as a full content update
+                    if (update.getPosition() == 0 && update.isInsert()) {
+                        editorArea.setText(update.getText());
                     } else {
-                        editorArea.replaceRange("", update.getPosition(), 
-                            update.getPosition() + update.getText().length());
+                        // For other updates, ensure the position is valid
+                        int docLength = editorArea.getDocument().getLength();
+                        int position = Math.min(update.getPosition(), docLength);
+                        
+                        if (update.isInsert()) {
+                            editorArea.insert(update.getText(), position);
+                        } else {
+                            int endPos = Math.min(position + update.getText().length(), docLength);
+                            editorArea.replaceRange("", position, endPos);
+                        }
                     }
+                    m_IsApplyingRemoteUpdate = false;
                 } catch (Exception e) {
                     e.printStackTrace();
+                    // If there's an error, request full content
+                    client.sendMessage(new Message(Message.Type.OPEN_DOCUMENT, currentDocumentId));
                 }
             });
         }
@@ -190,6 +230,14 @@ public class EditorGUI extends JFrame {
         public boolean isInsert() {
             return isInsert;
         }
+    }
+
+    @Override
+    public void dispose() {
+        if (m_AutoSaveTimer != null) {
+            m_AutoSaveTimer.stop();
+        }
+        super.dispose();
     }
 
     public static void main(String[] args) {
