@@ -23,8 +23,13 @@ public class Server {
 
     public void start() {
         try {
-            serverSocket = new ServerSocket(PORT);
+            // Bind to all network interfaces
+            serverSocket = new ServerSocket(PORT, 0, InetAddress.getByName("0.0.0.0"));
+            
+            // Get the server's IP address
+            String serverIP = InetAddress.getLocalHost().getHostAddress();
             System.out.println("[SERVER] Server started on port " + PORT);
+            System.out.println("[SERVER] Server IP address: " + serverIP);
             System.out.println("[SERVER] Waiting for client connections...");
 
             while (true) {

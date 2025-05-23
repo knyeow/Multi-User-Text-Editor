@@ -4,11 +4,11 @@ import common.Message;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.*;
+import javax.swing.JOptionPane;
 
 public class Client {
-    private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 5000;
-    
+    private String serverHost;
     private Socket socket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
@@ -23,8 +23,22 @@ public class Client {
     }
 
     public boolean connect() {
+        // Prompt for server IP
+        serverHost = JOptionPane.showInputDialog(
+            null,
+            "Enter server IP address:",
+            "Server Connection",
+            JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (serverHost == null || serverHost.trim().isEmpty()) {
+            System.err.println("No server IP provided");
+            return false;
+        }
+
         try {
-            socket = new Socket(SERVER_HOST, SERVER_PORT);
+            System.out.println("[CLIENT] Connecting to server at " + serverHost + ":" + SERVER_PORT);
+            socket = new Socket(serverHost, SERVER_PORT);
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
             
@@ -41,9 +55,15 @@ public class Client {
                 return false;
             }
             
-            return response.getBody().equals("SUCCESS");
+            boolean success = response.getBody().equals("SUCCESS");
+            if (success) {
+                System.out.println("[CLIENT] Successfully connected to server at " + serverHost);
+            } else {
+                System.out.println("[CLIENT] Failed to connect to server at " + serverHost);
+            }
+            return success;
         } catch (IOException e) {
-            System.err.println("Connection error: " + e.getMessage());
+            System.err.println("[CLIENT] Connection error: " + e.getMessage());
             return false;
         }
     }

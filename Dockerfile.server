@@ -1,0 +1,17 @@
+# Use Java 11 as base image
+FROM openjdk:11-jdk-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy the JAR file
+COPY target/multi-user-text-editor-1.0-SNAPSHOT-jar-with-dependencies.jar /app/server.jar
+
+# Expose the server port
+EXPOSE 5000
+
+# Set environment variables
+ENV JAVA_OPTS="-Xmx512m"
+
+# Run the server
+CMD ["java", "-jar", "server.jar", "server.Server"] 
