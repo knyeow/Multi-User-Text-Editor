@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text-editor-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text-editor-server
+  template:
+    metadata:
+      labels:
+        app: text-editor-server
+    spec:
+      containers:
+      - name: text-editor-server
+        image: your-registry.azurecr.io/text-editor-server:latest
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx512m"
+        readinessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: text-editor-server
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 5000
+  selector:
+    app: text-editor-server 

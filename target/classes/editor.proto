@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.texteditor.proto";
+
+package texteditor;
+
+// Service definition for the text editor
+service EditorService {
+  // Stream for real-time text updates and notifications
+  rpc StreamUpdates (stream ClientMessage) returns (stream ServerMessage) {}
+}
+
+// Message types for client to server communication
+message ClientMessage {
+  oneof message_type {
+    JoinRequest join_request = 1;
+    TextUpdate text_update = 2;
+    LeaveRequest leave_request = 3;
+  }
+}
+
+// Message types for server to client communication
+message ServerMessage {
+  oneof message_type {
+    JoinResponse join_response = 1;
+    TextUpdate text_update = 2;
+    UserListUpdate user_list_update = 3;
+    ErrorResponse error_response = 4;
+  }
+}
+
+// Client message types
+message JoinRequest {
+  string username = 1;
+}
+
+message TextUpdate {
+  string content = 1;
+  int32 cursor_position = 2;
+  string username = 3;
+}
+
+message LeaveRequest {
+  string username = 1;
+}
+
+// Server message types
+message JoinResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string current_users = 3;
+}
+
+message UserListUpdate {
+  repeated string users = 1;
+}
+
+message ErrorResponse {
+  string error_message = 1;
+} 

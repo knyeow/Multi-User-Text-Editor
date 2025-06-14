@@ -26,11 +26,11 @@ A real-time collaborative text editor that allows multiple users to edit documen
 ## How to Run
 1. Start the server:
    ```
-   java -cp target/multi-user-text-editor-1.0-SNAPSHOT-jar-with-dependencies.jar server.Server   
+    java -jar target/server-jar-with-dependencies.jar  
    ```
 2. Start the client:
    ```
-   java -cp target/multi-user-text-editor-1.0-SNAPSHOT-jar-with-dependencies.jar client.EditorGUI
+   java -jar target/client-jar-with-dependencies.jar
    ```
 
 ## Protocol Documentation
